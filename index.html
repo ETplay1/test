@@ -1,27 +1,129 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OPSUCHT Raketen Rechner</title>
+
+<style>
+body {
+    background:#1e1e1e;
+    color:white;
+    font-family:Arial,sans-serif;
+    max-width:900px;
+    margin:auto;
+    padding:20px;
+}
+
+.card{
+    background:#2c2c2c;
+    padding:20px;
+    border-radius:10px;
+}
+
+input{
+    width:100%;
+    padding:10px;
+    margin-top:5px;
+    margin-bottom:15px;
+}
+
+.loading{ color:orange; }
+</style>
+</head>
+
+<body>
+
+<h1>🚀 OPSUCHT Raketen Rechner</h1>
+
+<div class="card">
+
+<h3>Live Marktpreise</h3>
+
+<p>💥 Gunpowder: <span id="gunpowderPrice" class="loading">Lade...</span></p>
+<p>🌾 Zuckerrohr: <span id="sugarcanePrice" class="loading">Lade...</span></p>
+
+<hr>
+
+<label>Gewünschter Gewinn pro Rakete ($)</label>
+<input type="number" id="wantedProfit" value="0" step="0.01">
+
+<div id="output">Lade Daten...</div>
+
+</div>
+
+<script>
+
+let gunpowderPrice = null;
+let sugarcanePrice = null;
+
+async function fetchPrice(item) {
+    const res = await fetch(`https://api.opsucht.net/market/price/${item}`);
+    if (!res.ok) throw new Error("API Fehler");
+    return await res.json();
+}
+
+// 🔥 Universal Price Extractor (wichtig!)
+function extractPrice(data) {
+    return Number(
+        data?.price ??
+        data?.data?.price ??
+        data?.buyPrice ??
+        data?.sellPrice ??
+        data?.data?.buyPrice ??
+        data?.data?.sellPrice ??
+        0
+    );
+}
+
+async function loadPrices() {
+
+    try {
+        const gunpowderData = await fetchPrice("GUNPOWDER");
+        const sugarData = await fetchPrice("SUGAR_CANE");
+
+        console.log("GUN:", gunpowderData);
+        console.log("SUGAR:", sugarData);
+
+        gunpowderPrice = extractPrice(gunpowderData);
+        sugarcanePrice = extractPrice(sugarData);
+
+        document.getElementById("gunpowderPrice").innerText =
+            gunpowderPrice ? gunpowderPrice.toFixed(2) + "$" : "kein Preis";
+
+        document.getElementById("sugarcanePrice").innerText =
+            sugarcanePrice ? sugarcanePrice.toFixed(2) + "$" : "kein Preis";
+
+        calculate();
+
+    } catch (e) {
+        console.error(e);
+
+        document.getElementById("gunpowderPrice").innerText = "Fehler";
+        document.getElementById("sugarcanePrice").innerText = "Fehler";
+    }
+}
+
 function calculate() {
 
-    const wantedProfit = parseFloat(
-        document.getElementById("wantedProfit").value
-    ) || 0;
+    const wantedProfit =
+        parseFloat(document.getElementById("wantedProfit").value) || 0;
 
-    const recipeCost = gunpowderPrice + sugarcanePrice;
-    const costPerRocket = recipeCost / 3;
-
-    // ❗ richtiger Check (wichtig!)
-    if (gunpowderPrice === undefined || sugarcanePrice === undefined) {
+    // 🔥 solange API nicht da ist
+    if (gunpowderPrice === null || sugarcanePrice === null) {
         document.getElementById("output").innerHTML = `
-            Berechnung
-            Herstellungskosten pro Rakete: 0.00$
-
-            Gewünschter Gewinn pro Rakete: ${wantedProfit.toFixed(2)}$
-
-            🚀 Verkauf 1: 0.00$
-            🚀 Verkauf 10: 0.00$
-            📦 Stack: 0.00$
-            🎒 Shulker: 0.00$
+            <h3>Berechnung</h3>
+            <p>Preise werden geladen...</p>
+            <p>🚀 1: 0.00$</p>
+            <p>🚀 10: 0.00$</p>
+            <p>📦 Stack: 0.00$</p>
+            <p>🎒 Shulker: 0.00$</p>
         `;
         return;
     }
+
+    const recipeCost = gunpowderPrice + sugarcanePrice;
+    const costPerRocket = recipeCost / 3;
 
     const sellPricePerRocket = costPerRocket + wantedProfit;
 
@@ -30,14 +132,31 @@ function calculate() {
     const sellPriceShulker = sellPricePerRocket * 1728;
 
     document.getElementById("output").innerHTML = `
-        Berechnung
-        Herstellungskosten pro Rakete: ${costPerRocket.toFixed(2)}$
+        <h3>Berechnung</h3>
 
-        Gewünschter Gewinn pro Rakete: ${wantedProfit.toFixed(2)}$
+        <p>Herstellungskosten pro Rakete: <b>${costPerRocket.toFixed(2)}$</b></p>
 
-        🚀 Verkaufspreis für 1 Rakete: ${sellPricePerRocket.toFixed(2)}$
-        🚀 Verkaufspreis für 10 Raketen: ${sellPrice10.toFixed(2)}$
-        📦 Verkaufspreis für 1 Stack: ${sellPriceStack.toFixed(2)}$
-        🎒 Verkaufspreis für 1 Shulker: ${sellPriceShulker.toFixed(2)}$
+        <p>Gewünschter Gewinn pro Rakete: <b>${wantedProfit.toFixed(2)}$</b></p>
+
+        <hr>
+
+        <p>🚀 1 Rakete: <b>${sellPricePerRocket.toFixed(2)}$</b></p>
+        <p>🚀 10 Raketen: <b>${sellPrice10.toFixed(2)}$</b></p>
+        <p>📦 1 Stack: <b>${sellPriceStack.toFixed(2)}$</b></p>
+        <p>🎒 1 Shulker: <b>${sellPriceShulker.toFixed(2)}$</b></p>
     `;
 }
+
+// 🔥 Enter Support
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") calculate();
+});
+
+// Start
+loadPrices();
+setInterval(loadPrices, 60000);
+
+</script>
+
+</body>
+</html>
