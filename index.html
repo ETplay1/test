@@ -29,7 +29,6 @@ input{
 }
 
 .loading{ color:orange; }
-.small{ opacity:0.7; }
 </style>
 </head>
 
@@ -41,68 +40,71 @@ input{
 
 <h3>Live Marktpreise</h3>
 
-<p>💥 Gunpowder: <span id="gunpowderPrice" class="loading">lädt...</span></p>
-<p>🌾 Zuckerrohr: <span id="sugarcanePrice" class="loading">lädt...</span></p>
+<p>💥 Gunpowder: <span id="gunpowderPrice">lädt...</span></p>
+<p>🌾 Zuckerrohr: <span id="sugarcanePrice">lädt...</span></p>
 
 <hr>
 
 <label>Gewünschter Gewinn pro Rakete ($)</label>
 <input type="number" id="wantedProfit" value="0" step="0.01" oninput="calculate()">
 
-<div id="output" class="small">
-    Berechnung wird angezeigt...
+<div id="output">
+    <h3>Berechnung</h3>
+    <p>Warte auf API...</p>
 </div>
 
 </div>
 
 <script>
 
-let gunpowderPrice = null;
-let sugarcanePrice = null;
+let gunpowderPrice = 0;
+let sugarcanePrice = 0;
 
 async function fetchPrice(item) {
     const res = await fetch(`https://api.opsucht.net/market/price/${item}`);
-    if (!res.ok) throw new Error("API Fehler");
-    return await res.json();
+    const data = await res.json();
+
+    console.log("API RESPONSE:", item, data); // 🔥 WICHTIG
+
+    return data;
 }
 
-/* 🔥 EXTREM ROBUSTE PREIS-EXTRAKTION */
-function extractPrice(data) {
-    return Number(
-        data?.price ??
-        data?.data?.price ??
-        data?.result?.price ??
-        data?.result?.value ??
-        data?.value ??
-        data?.buyPrice ??
-        data?.sellPrice ??
-        data?.items?.[0]?.price ??
-        0
-    );
+/* 🔥 findet wirklich ALLES was Preis sein könnte */
+function extractPrice(obj) {
+
+    if (typeof obj === "number") return obj;
+
+    if (obj?.price) return obj.price;
+    if (obj?.data?.price) return obj.data.price;
+    if (obj?.result?.price) return obj.result.price;
+    if (obj?.value) return obj.value;
+    if (obj?.buyPrice) return obj.buyPrice;
+    if (obj?.sellPrice) return obj.sellPrice;
+
+    // 🔥 falls API Array liefert
+    if (Array.isArray(obj)) {
+        return obj[0]?.price || 0;
+    }
+
+    console.warn("KEIN PREIS GEFUNDEN:", obj);
+    return 0;
 }
 
 async function loadPrices() {
-    try {
-        const gun = await fetchPrice("GUNPOWDER");
-        const sugar = await fetchPrice("SUGAR_CANE");
 
-        gunpowderPrice = extractPrice(gun);
-        sugarcanePrice = extractPrice(sugar);
+    const gun = await fetchPrice("GUNPOWDER");
+    const sugar = await fetchPrice("SUGAR_CANE");
 
-        document.getElementById("gunpowderPrice").innerText =
-            gunpowderPrice ? gunpowderPrice.toFixed(2) + "$" : "0.00$";
+    gunpowderPrice = extractPrice(gun);
+    sugarcanePrice = extractPrice(sugar);
 
-        document.getElementById("sugarcanePrice").innerText =
-            sugarcanePrice ? sugarcanePrice.toFixed(2) + "$" : "0.00$";
+    document.getElementById("gunpowderPrice").innerText =
+        gunpowderPrice + "$";
 
-        calculate();
+    document.getElementById("sugarcanePrice").innerText =
+        sugarcanePrice + "$";
 
-    } catch (e) {
-        console.error(e);
-
-        document.getElementById("gunpowderPrice").innerText = "Fehler";
-        document.getElementById("sugarcanePrice").innerText = "Fehler";
-    }
+    calculate();
 }
 
 function calculate() {
@@ -110,55 +112,27 @@ function calculate() {
     const wantedProfit =
         parseFloat(document.getElementById("wantedProfit").value) || 0;
 
-    /* 🔥 Platzhalter wenn noch nichts geladen */
-    if (!gunpowderPrice || !sugarcanePrice) {
-        document.getElementById("output").innerHTML = `
-            <h3>Berechnung</h3>
-            <p>Herstellungskosten pro Rakete: <b>0.00$</b></p>
-
-            <p>Gewünschter Gewinn pro Rakete: <b>${wantedProfit.toFixed(2)}$</b></p>
-
-            <hr>
-
-            <p>🚀 1 Rakete: <b>0.00$</b></p>
-            <p>🚀 10 Raketen: <b>0.00$</b></p>
-            <p>📦 1 Stack: <b>0.00$</b></p>
-            <p>🎒 1 Shulker: <b>0.00$</b></p>
-        `;
-        return;
-    }
-
     const recipeCost = gunpowderPrice + sugarcanePrice;
     const costPerRocket = recipeCost / 3;
 
     const sellPricePerRocket = costPerRocket + wantedProfit;
 
-    const sellPrice10 = sellPricePerRocket * 10;
-    const sellPriceStack = sellPricePerRocket * 64;
-    const sellPriceShulker = sellPricePerRocket * 1728;
-
     document.getElementById("output").innerHTML = `
         <h3>Berechnung</h3>
 
-        <p>Herstellungskosten pro Rakete: <b>${costPerRocket.toFixed(2)}$</b></p>
-
-        <p>Gewünschter Gewinn pro Rakete: <b>${wantedProfit.toFixed(2)}$</b></p>
+        <p>Herstellungskosten: <b>${costPerRocket.toFixed(2)}$</b></p>
+        <p>Gewinn pro Rakete: <b>${wantedProfit.toFixed(2)}$</b></p>
 
         <hr>
 
-        <p>🚀 1 Rakete: <b>${sellPricePerRocket.toFixed(2)}$</b></p>
-        <p>🚀 10 Raketen: <b>${sellPrice10.toFixed(2)}$</b></p>
-        <p>📦 1 Stack: <b>${sellPriceStack.toFixed(2)}$</b></p>
-        <p>🎒 1 Shulker: <b>${sellPriceShulker.toFixed(2)}$</b></p>
+        <p>🚀 1: <b>${sellPricePerRocket.toFixed(2)}$</b></p>
+        <p>🚀 10: <b>${(sellPricePerRocket*10).toFixed(2)}$</b></p>
+        <p>📦 Stack: <b>${(sellPricePerRocket*64).toFixed(2)}$</b></p>
+        <p>🎒 Shulker: <b>${(sellPricePerRocket*1728).toFixed(2)}$</b></p>
     `;
 }
 
-/* 🔥 Enter Support */
-document.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") calculate();
-});
-
-/* 🚀 START + AUTO UPDATE ALLE 30 SEKUNDEN */
+/* start + refresh */
 loadPrices();
 setInterval(loadPrices, 30000);
 
