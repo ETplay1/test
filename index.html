@@ -48,7 +48,7 @@ input{
 <label>Gewünschter Gewinn pro Rakete ($)</label>
 <input type="number" id="wantedProfit" value="0" step="0.01">
 
-<div id="output">Lade...</div>
+<div id="output">Lade Daten...</div>
 
 </div>
 
@@ -62,13 +62,17 @@ async function fetchPrice(item) {
     return await res.json();
 }
 
-// 🔥 safe price reader
+/* 🔥 EXTREM ROBUST: findet Preis egal wo er steckt */
 function extractPrice(data) {
     return Number(
         data?.price ??
         data?.data?.price ??
+        data?.result?.price ??
+        data?.result?.value ??
+        data?.value ??
         data?.buyPrice ??
         data?.sellPrice ??
+        data?.items?.[0]?.price ??
         0
     );
 }
@@ -78,8 +82,13 @@ async function loadPrices() {
         const gun = await fetchPrice("GUNPOWDER");
         const sugar = await fetchPrice("SUGAR_CANE");
 
+        console.log("GUN RAW:", gun);
+        console.log("SUGAR RAW:", sugar);
+
         gunpowderPrice = extractPrice(gun);
         sugarcanePrice = extractPrice(sugar);
+
+        console.log("PARSED:", gunpowderPrice, sugarcanePrice);
 
         document.getElementById("gunpowderPrice").innerText =
             gunpowderPrice.toFixed(2) + "$";
@@ -90,6 +99,8 @@ async function loadPrices() {
         calculate();
 
     } catch (e) {
+        console.error("API ERROR:", e);
+
         document.getElementById("gunpowderPrice").innerText = "Fehler";
         document.getElementById("sugarcanePrice").innerText = "Fehler";
     }
@@ -100,6 +111,7 @@ function calculate() {
     const wantedProfit =
         parseFloat(document.getElementById("wantedProfit").value) || 0;
 
+    // 🔥 wenn API noch nicht geladen
     if (gunpowderPrice === null || sugarcanePrice === null) {
         document.getElementById("output").innerHTML = `
 Berechnung
@@ -140,7 +152,7 @@ Gewünschter Gewinn pro Rakete: ${wantedProfit.toFixed(2)}$
     `;
 }
 
-// Enter Support
+/* Enter Support */
 document.addEventListener("keydown", (e) => {
     if (e.key === "Enter") calculate();
 });
