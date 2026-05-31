@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OPSUCHT Raketen Rechner</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    max-width: 800px;
+    margin: auto;
+    padding: 20px;
+    background: #1e1e1e;
+    color: white;
+}
+
+.card {
+    background: #2b2b2b;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+input {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    margin-bottom: 15px;
+    border: none;
+    border-radius: 5px;
+}
+
+h1 {
+    text-align: center;
+}
+
+.result {
+    font-size: 18px;
+    margin-top: 10px;
+}
+
+.profit {
+    color: #3ddc84;
+}
+
+.loss {
+    color: #ff5f5f;
+}
+</style>
+</head>
+<body>
+
+<h1>🚀 OPSUCHT Raketen Preisrechner</h1>
+
+<div class="card">
+
+<label>Gunpowder Preis pro Stück ($)</label>
+<input type="number" id="gunpowder" value="8.5" step="0.01">
+
+<label>Papier Preis pro Stück ($)</label>
+<input type="number" id="paper" value="1" step="0.01">
+
+<label>Verkaufspreis pro Rakete ($)</label>
+<input type="number" id="rocketprice" value="30" step="0.01">
+
+<button onclick="calculate()">Berechnen</button>
+
+<div id="output" class="result"></div>
+
+</div>
+
+<script>
+
+function calculate() {
+
+    const gunpowder = parseFloat(document.getElementById("gunpowder").value);
+    const paper = parseFloat(document.getElementById("paper").value);
+    const rocketprice = parseFloat(document.getElementById("rocketprice").value);
+
+    /*
+     * Standard Minecraft Rezept:
+     * 1 Papier
+     * 1 Gunpowder
+     * = 3 Raketen
+     */
+
+    const recipeCost = gunpowder + paper;
+    const costPerRocket = recipeCost / 3;
+
+    const profitPerRocket = rocketprice - costPerRocket;
+
+    const stackProfit = profitPerRocket * 64;
+
+    let profitClass = profitPerRocket >= 0 ? "profit" : "loss";
+
+    document.getElementById("output").innerHTML = `
+        <p>💰 Herstellungskosten pro Rakete: <b>${costPerRocket.toFixed(2)}$</b></p>
+        <p>🚀 Gewinn pro Rakete:
+        <span class="${profitClass}">
+        <b>${profitPerRocket.toFixed(2)}$</b>
+        </span></p>
+
+        <p>📦 Gewinn pro Stack (64):
+        <span class="${profitClass}">
+        <b>${stackProfit.toFixed(2)}$</b>
+        </span></p>
+    `;
+}
+
+calculate();
+
+</script>
+
+</body>
+</html>
