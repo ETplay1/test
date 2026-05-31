@@ -3,67 +3,105 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OPSUCHT Raketen Rechner</title>
+<title>OPSUCHT Raketenrechner</title>
 
 <style>
 body {
-    background:#1e1e1e;
-    color:white;
-    font-family:Arial,sans-serif;
-    max-width:900px;
-    margin:auto;
-    padding:20px;
+    background: #1e1e1e;
+    color: #ffffff;
+    font-family: Arial, sans-serif;
+    max-width: 900px;
+    margin: auto;
+    padding: 20px;
 }
 
-.card{
-    background:#2c2c2c;
-    padding:20px;
-    border-radius:10px;
+.card {
+    background: #2c2c2c;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
 }
 
-input{
-    width:100%;
-    padding:10px;
-    margin-top:5px;
-    margin-bottom:15px;
+h1 {
+    text-align: center;
 }
 
-.profit{
-    color:#3ddc84;
+input {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+    border: none;
 }
 
-.loss{
-    color:#ff6666;
+.profit {
+    color: #00ff88;
 }
 
-.loading{
-    color:orange;
+.loss {
+    color: #ff6666;
+}
+
+.loading {
+    color: orange;
+}
+
+.small {
+    color: #bbbbbb;
+    font-size: 0.9em;
 }
 </style>
+
 </head>
 <body>
 
-<h1>🚀 OPSUCHT Raketen Rechner</h1>
+<h1>🚀 OPSUCHT Raketenrechner</h1>
 
 <div class="card">
 
-<h3>Live Marktpreise</h3>
+<h2>Aktuelle Marktpreise</h2>
 
-<p>💥 Gunpowder: <span id="gunpowderPrice" class="loading">Lade...</span></p>
-<p>🌾 Zuckerrohr: <span id="sugarcanePrice" class="loading">Lade...</span></p>
+<p>
+💥 Gunpowder:
+<strong id="gunpowderPrice" class="loading">Lade...</strong>
+</p>
 
-<hr>
+<p>
+🌾 Zuckerrohr:
+<strong id="sugarcanePrice" class="loading">Lade...</strong>
+</p>
+
+<p class="small">
+Preise werden automatisch alle 60 Sekunden aktualisiert.
+</p>
+
+</div>
+
+<div class="card">
+
+<h2>Verkaufspreis</h2>
 
 <label>Verkaufspreis pro Rakete ($)</label>
+
 <input
-    type="number"
     id="rocketPrice"
-    value="30"
+    type="number"
+    value="10"
     step="0.01"
     onchange="calculate()"
+    onkeyup="calculate()"
 >
 
-<div id="output"></div>
+</div>
+
+<div class="card">
+
+<h2>Berechnung</h2>
+
+<div id="output">
+Warte auf Marktdaten...
+</div>
 
 </div>
 
@@ -72,7 +110,7 @@ input{
 let gunpowderPrice = 0;
 let sugarcanePrice = 0;
 
-async function fetchPrice(item) {
+async function getMarketPrice(item) {
 
     const response = await fetch(
         `https://api.opsucht.net/market/price/${item}`
@@ -82,35 +120,32 @@ async function fetchPrice(item) {
         throw new Error("API Fehler");
     }
 
-    return await response.json();
+    const data = await response.json();
+
+    const orders = data[item];
+
+    const buyOrder = orders.find(
+        o => o.orderSide === "BUY"
+    );
+
+    if (!buyOrder) {
+        throw new Error(
+            `Kein BUY Preis für ${item}`
+        );
+    }
+
+    return buyOrder.price;
 }
 
 async function loadPrices() {
 
     try {
 
-        const gunpowderData =
-            await fetchPrice("GUNPOWDER");
-
-        const sugarData =
-            await fetchPrice("SUGAR_CANE");
-
-        /*
-         * API Struktur eventuell anpassen:
-         * gunpowderData.price
-         * gunpowderData.sellPrice
-         * gunpowderData.buyPrice
-         */
-
         gunpowderPrice =
-            gunpowderData.price ??
-            gunpowderData.buyPrice ??
-            gunpowderData.sellPrice;
+            await getMarketPrice("GUNPOWDER");
 
         sugarcanePrice =
-            sugarData.price ??
-            sugarData.buyPrice ??
-            sugarData.sellPrice;
+            await getMarketPrice("SUGAR_CANE");
 
         document.getElementById(
             "gunpowderPrice"
@@ -124,37 +159,49 @@ async function loadPrices() {
 
         calculate();
 
-    } catch (e) {
+    } catch (error) {
 
-        console.error(e);
+        console.error(error);
 
         document.getElementById(
             "gunpowderPrice"
-        ).innerText =
-            "Fehler";
+        ).innerText = "Fehler";
 
         document.getElementById(
             "sugarcanePrice"
-        ).innerText =
-            "Fehler";
+        ).innerText = "Fehler";
+
+        document.getElementById(
+            "output"
+        ).innerHTML =
+            "<p>Fehler beim Laden der Marktpreise.</p>";
     }
 }
 
 function calculate() {
 
-    const rocketPrice =
-        parseFloat(
-            document.getElementById(
-                "rocketPrice"
-            ).value
-        );
+    if (
+        gunpowderPrice === 0 ||
+        sugarcanePrice === 0
+    ) {
+        return;
+    }
+
+    const rocketPrice = parseFloat(
+        document.getElementById(
+            "rocketPrice"
+        ).value
+    );
 
     /*
-     * 3 Zuckerrohr -> 3 Papier
-     * 1 Papier + 1 Gunpowder -> 3 Raketen
+     * Minecraft:
+     * 1 Gunpowder
+     * 1 Papier
+     * =
+     * 3 Raketen
      *
-     * => 1 Zuckerrohr + 1 Gunpowder
-     * => 3 Raketen
+     * 3 Zuckerrohr -> 3 Papier
+     * => 1 Zuckerrohr = 1 Papier
      */
 
     const recipeCost =
@@ -165,39 +212,63 @@ function calculate() {
         recipeCost / 3;
 
     const profitPerRocket =
-        rocketPrice -
-        costPerRocket;
+        rocketPrice - costPerRocket;
 
     const profitPerStack =
         profitPerRocket * 64;
 
+    const profitPerShulker =
+        profitPerStack * 27;
+
     const css =
         profitPerRocket >= 0
-        ? "profit"
-        : "loss";
+            ? "profit"
+            : "loss";
 
     document.getElementById(
         "output"
     ).innerHTML = `
-        <h3>Berechnung</h3>
 
-        <p>Herstellungskosten pro Rakete:
-        <b>${costPerRocket.toFixed(2)}$</b></p>
+        <p>
+        Herstellungskosten pro Rakete:
+        <strong>
+        ${costPerRocket.toFixed(2)}$
+        </strong>
+        </p>
 
-        <p>Gewinn pro Rakete:
+        <p>
+        Gewinn pro Rakete:
         <span class="${css}">
-        <b>${profitPerRocket.toFixed(2)}$</b>
-        </span></p>
+        <strong>
+        ${profitPerRocket.toFixed(2)}$
+        </strong>
+        </span>
+        </p>
 
-        <p>Gewinn pro Stack:
+        <p>
+        Gewinn pro Stack (64):
         <span class="${css}">
-        <b>${profitPerStack.toFixed(2)}$</b>
-        </span></p>
+        <strong>
+        ${profitPerStack.toFixed(2)}$
+        </strong>
+        </span>
+        </p>
+
+        <p>
+        Gewinn pro Shulkerkiste (27 Stacks):
+        <span class="${css}">
+        <strong>
+        ${profitPerShulker.toFixed(2)}$
+        </strong>
+        </span>
+        </p>
+
     `;
 }
 
 loadPrices();
 
+/* alle 60 Sekunden aktualisieren */
 setInterval(loadPrices, 60000);
 
 </script>
