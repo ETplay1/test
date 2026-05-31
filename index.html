@@ -3,32 +3,54 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OPSUCHT Raketen Rechner</title>
+<title>OPSUCHT Raketenrechner</title>
 
 <style>
 body {
-    background:#1e1e1e;
-    color:white;
-    font-family:Arial,sans-serif;
-    max-width:900px;
-    margin:auto;
-    padding:20px;
+    background: #1e1e1e;
+    color: white;
+    font-family: Arial, sans-serif;
+    max-width: 900px;
+    margin: auto;
+    padding: 20px;
 }
 
-.card{
-    background:#2c2c2c;
-    padding:20px;
-    border-radius:10px;
+.card {
+    background: #2c2c2c;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
 }
 
-input{
-    width:100%;
-    padding:10px;
-    margin-top:5px;
-    margin-bottom:15px;
+input {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    margin-bottom: 15px;
+    border: none;
+    border-radius: 5px;
 }
 
-.loading{ color:orange; }
+.loading {
+    color: orange;
+}
+
+.error {
+    color: #ff6666;
+}
+
+.success {
+    color: #00ff88;
+}
+
+hr {
+    border: 1px solid #444;
+}
+
+.small {
+    color: #aaa;
+    font-size: 0.9em;
+}
 </style>
 </head>
 
@@ -40,17 +62,42 @@ input{
 
 <h3>Live Marktpreise</h3>
 
-<p>💥 Gunpowder: <span id="gunpowderPrice">lädt...</span></p>
-<p>🌾 Zuckerrohr: <span id="sugarcanePrice">lädt...</span></p>
+<p>
+💥 Gunpowder:
+<b id="gunpowderPrice" class="loading">Lade...</b>
+</p>
+
+<p>
+🌾 Zuckerrohr:
+<b id="sugarcanePrice" class="loading">Lade...</b>
+</p>
+
+<p class="small">
+Preisquelle: OPSUCHT Market API (BUY Orders)
+</p>
 
 <hr>
 
 <label>Gewünschter Gewinn pro Rakete ($)</label>
-<input type="number" id="wantedProfit" value="0" step="0.01" oninput="calculate()">
+
+<input
+    type="number"
+    id="wantedProfit"
+    value="0"
+    step="0.01"
+    oninput="calculate()"
+>
+
+</div>
+
+<div class="card">
 
 <div id="output">
-    <h3>Berechnung</h3>
-    <p>Warte auf API...</p>
+
+<h3>Berechnung</h3>
+
+<p>Warte auf API...</p>
+
 </div>
 
 </div>
@@ -60,81 +107,196 @@ input{
 let gunpowderPrice = 0;
 let sugarcanePrice = 0;
 
-async function fetchPrice(item) {
-    const res = await fetch(`https://api.opsucht.net/market/price/${item}`);
-    const data = await res.json();
+async function getBuyPrice(item) {
 
-    console.log("API RESPONSE:", item, data); // 🔥 WICHTIG
+    const response = await fetch(
+        `https://api.opsucht.net/market/price/${item}`
+    );
 
-    return data;
-}
-
-/* 🔥 findet wirklich ALLES was Preis sein könnte */
-function extractPrice(obj) {
-
-    if (typeof obj === "number") return obj;
-
-    if (obj?.price) return obj.price;
-    if (obj?.data?.price) return obj.data.price;
-    if (obj?.result?.price) return obj.result.price;
-    if (obj?.value) return obj.value;
-    if (obj?.buyPrice) return obj.buyPrice;
-    if (obj?.sellPrice) return obj.sellPrice;
-
-    // 🔥 falls API Array liefert
-    if (Array.isArray(obj)) {
-        return obj[0]?.price || 0;
+    if (!response.ok) {
+        throw new Error(
+            `HTTP Fehler ${response.status}`
+        );
     }
 
-    console.warn("KEIN PREIS GEFUNDEN:", obj);
-    return 0;
+    const data = await response.json();
+
+    if (!data[item]) {
+        throw new Error(
+            `Kein Datensatz für ${item}`
+        );
+    }
+
+    const buyOrder =
+        data[item].find(
+            entry => entry.orderSide === "BUY"
+        );
+
+    if (!buyOrder) {
+        throw new Error(
+            `Keine BUY Order für ${item}`
+        );
+    }
+
+    return buyOrder.price;
 }
 
 async function loadPrices() {
 
-    const gun = await fetchPrice("GUNPOWDER");
-    const sugar = await fetchPrice("SUGAR_CANE");
+    try {
 
-    gunpowderPrice = extractPrice(gun);
-    sugarcanePrice = extractPrice(sugar);
+        gunpowderPrice =
+            await getBuyPrice("GUNPOWDER");
 
-    document.getElementById("gunpowderPrice").innerText =
-        gunpowderPrice + "$";
+        sugarcanePrice =
+            await getBuyPrice("SUGAR_CANE");
 
-    document.getElementById("sugarcanePrice").innerText =
-        sugarcanePrice + "$";
+        document.getElementById(
+            "gunpowderPrice"
+        ).innerText =
+            gunpowderPrice.toFixed(2) + "$";
 
-    calculate();
+        document.getElementById(
+            "gunpowderPrice"
+        ).className = "success";
+
+        document.getElementById(
+            "sugarcanePrice"
+        ).innerText =
+            sugarcanePrice.toFixed(2) + "$";
+
+        document.getElementById(
+            "sugarcanePrice"
+        ).className = "success";
+
+        calculate();
+
+    } catch (err) {
+
+        console.error(err);
+
+        document.getElementById(
+            "gunpowderPrice"
+        ).innerText =
+            "Fehler";
+
+        document.getElementById(
+            "sugarcanePrice"
+        ).innerText =
+            "Fehler";
+
+        document.getElementById(
+            "output"
+        ).innerHTML = `
+            <h3>Fehler</h3>
+            <p class="error">
+                API konnte nicht geladen werden.
+            </p>
+            <pre>${err}</pre>
+        `;
+    }
 }
 
 function calculate() {
 
+    if (
+        gunpowderPrice <= 0 ||
+        sugarcanePrice <= 0
+    ) {
+        return;
+    }
+
     const wantedProfit =
-        parseFloat(document.getElementById("wantedProfit").value) || 0;
+        parseFloat(
+            document.getElementById(
+                "wantedProfit"
+            ).value
+        ) || 0;
 
-    const recipeCost = gunpowderPrice + sugarcanePrice;
-    const costPerRocket = recipeCost / 3;
+    /*
+     * Minecraft:
+     * 1 Gunpowder
+     * 1 Papier
+     * =
+     * 3 Raketen
+     *
+     * 3 Zuckerrohr
+     * =
+     * 3 Papier
+     *
+     * => 1 Zuckerrohr = 1 Papier
+     */
 
-    const sellPricePerRocket = costPerRocket + wantedProfit;
+    const recipeCost =
+        gunpowderPrice +
+        sugarcanePrice;
 
-    document.getElementById("output").innerHTML = `
+    const costPerRocket =
+        recipeCost / 3;
+
+    const sellPricePerRocket =
+        costPerRocket +
+        wantedProfit;
+
+    document.getElementById(
+        "output"
+    ).innerHTML = `
+
         <h3>Berechnung</h3>
 
-        <p>Herstellungskosten: <b>${costPerRocket.toFixed(2)}$</b></p>
-        <p>Gewinn pro Rakete: <b>${wantedProfit.toFixed(2)}$</b></p>
+        <p>
+            Gunpowder Preis:
+            <b>${gunpowderPrice.toFixed(2)}$</b>
+        </p>
+
+        <p>
+            Zuckerrohr Preis:
+            <b>${sugarcanePrice.toFixed(2)}$</b>
+        </p>
 
         <hr>
 
-        <p>🚀 1: <b>${sellPricePerRocket.toFixed(2)}$</b></p>
-        <p>🚀 10: <b>${(sellPricePerRocket*10).toFixed(2)}$</b></p>
-        <p>📦 Stack: <b>${(sellPricePerRocket*64).toFixed(2)}$</b></p>
-        <p>🎒 Shulker: <b>${(sellPricePerRocket*1728).toFixed(2)}$</b></p>
+        <p>
+            Herstellungskosten pro Rakete:
+            <b>${costPerRocket.toFixed(2)}$</b>
+        </p>
+
+        <p>
+            Gewünschter Gewinn:
+            <b>${wantedProfit.toFixed(2)}$</b>
+        </p>
+
+        <hr>
+
+        <p>
+            🚀 Einzelrakete:
+            <b>${sellPricePerRocket.toFixed(2)}$</b>
+        </p>
+
+        <p>
+            🚀 10 Raketen:
+            <b>${(sellPricePerRocket * 10).toFixed(2)}$</b>
+        </p>
+
+        <p>
+            📦 Stack (64):
+            <b>${(sellPricePerRocket * 64).toFixed(2)}$</b>
+        </p>
+
+        <p>
+            🎒 Shulkerkiste (1728):
+            <b>${(sellPricePerRocket * 1728).toFixed(2)}$</b>
+        </p>
+
     `;
 }
 
-/* start + refresh */
 loadPrices();
-setInterval(loadPrices, 30000);
+
+setInterval(
+    loadPrices,
+    30000
+);
 
 </script>
 
