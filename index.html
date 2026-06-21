@@ -43,10 +43,6 @@ input {
     color: #00ff88;
 }
 
-hr {
-    border: 1px solid #444;
-}
-
 .small {
     color: #aaa;
     font-size: 0.9em;
@@ -73,7 +69,7 @@ hr {
 </p>
 
 <p class="small">
-Preisquelle: OPSUCHT Market API (BUY Orders)
+Preisquelle: OPSUCHT Market API
 </p>
 
 <hr>
@@ -81,11 +77,11 @@ Preisquelle: OPSUCHT Market API (BUY Orders)
 <label>Gewünschter Gewinn pro Rakete ($)</label>
 
 <input
-    type="number"
-    id="wantedProfit"
-    value="0"
-    step="0.01"
-    oninput="calculate()"
+type="number"
+id="wantedProfit"
+value="0"
+step="0.01"
+oninput="calculate()"
 >
 
 </div>
@@ -93,11 +89,8 @@ Preisquelle: OPSUCHT Market API (BUY Orders)
 <div class="card">
 
 <div id="output">
-
 <h3>Berechnung</h3>
-
 <p>Warte auf API...</p>
-
 </div>
 
 </div>
@@ -176,16 +169,6 @@ async function loadPrices() {
         console.error(err);
 
         document.getElementById(
-            "gunpowderPrice"
-        ).innerText =
-            "Fehler";
-
-        document.getElementById(
-            "sugarcanePrice"
-        ).innerText =
-            "Fehler";
-
-        document.getElementById(
             "output"
         ).innerHTML = `
             <h3>Fehler</h3>
@@ -213,20 +196,6 @@ function calculate() {
             ).value
         ) || 0;
 
-    /*
-     * Minecraft:
-     * 1 Gunpowder
-     * 1 Papier
-     * =
-     * 3 Raketen
-     *
-     * 3 Zuckerrohr
-     * =
-     * 3 Papier
-     *
-     * => 1 Zuckerrohr = 1 Papier
-     */
-
     const recipeCost =
         gunpowderPrice +
         sugarcanePrice;
@@ -237,6 +206,9 @@ function calculate() {
     const sellPricePerRocket =
         costPerRocket +
         wantedProfit;
+
+    const stackPrice =
+        sellPricePerRocket * 64;
 
     document.getElementById(
         "output"
@@ -280,13 +252,31 @@ function calculate() {
 
         <p>
             📦 Stack (64):
-            <b>${(sellPricePerRocket * 64).toFixed(2)}$</b>
+            <b>${stackPrice.toFixed(2)}$</b>
         </p>
 
         <p>
             🎒 Shulkerkiste (1728):
             <b>${(sellPricePerRocket * 1728).toFixed(2)}$</b>
         </p>
+
+        <hr>
+
+        <h3>Anzeigetafel</h3>
+
+        <div style="
+            background:#111;
+            border:2px solid #555;
+            padding:15px;
+            width:220px;
+            color:white;
+            font-family:monospace;
+            line-height:1.8;
+        ">
+            <div>redtech236</div>
+            <div>64</div>
+            <div>B ${stackPrice.toFixed(2)}$</div>
+        </div>
 
     `;
 }
