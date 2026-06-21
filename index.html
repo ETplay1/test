@@ -3,49 +3,60 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OPSUCHT Raketenrechner</title>
+<title>OPSUCHT Raketen Rechner</title>
 
 <style>
-body {
-    background: #1e1e1e;
-    color: white;
-    font-family: Arial, sans-serif;
-    max-width: 900px;
-    margin: auto;
-    padding: 20px;
+body{
+    background:#1e1e1e;
+    color:white;
+    font-family:Arial,sans-serif;
+    max-width:900px;
+    margin:auto;
+    padding:20px;
 }
 
-.card {
-    background: #2c2c2c;
-    padding: 20px;
-    border-radius: 10px;
-    margin-bottom: 20px;
+.card{
+    background:#2c2c2c;
+    padding:20px;
+    border-radius:10px;
+    margin-bottom:20px;
 }
 
-input {
-    width: 100%;
-    padding: 10px;
-    margin-top: 5px;
-    margin-bottom: 15px;
-    border: none;
-    border-radius: 5px;
+input{
+    width:100%;
+    padding:10px;
+    margin-top:5px;
+    margin-bottom:15px;
+    border:none;
+    border-radius:5px;
 }
 
-.loading {
-    color: orange;
+.loading{
+    color:orange;
 }
 
-.error {
-    color: #ff6666;
+.success{
+    color:#00ff88;
 }
 
-.success {
-    color: #00ff88;
+.error{
+    color:#ff6666;
 }
 
-.small {
-    color: #aaa;
-    font-size: 0.9em;
+.small{
+    color:#aaa;
+    font-size:0.9em;
+}
+
+.signcode{
+    background:#111;
+    border:2px solid #555;
+    padding:15px;
+    width:220px;
+    color:white;
+    font-family:monospace;
+    line-height:1.8;
+    margin-top:10px;
 }
 </style>
 </head>
@@ -87,12 +98,10 @@ oninput="calculate()"
 </div>
 
 <div class="card">
-
 <div id="output">
 <h3>Berechnung</h3>
 <p>Warte auf API...</p>
 </div>
-
 </div>
 
 <script>
@@ -100,100 +109,62 @@ oninput="calculate()"
 let gunpowderPrice = 0;
 let sugarcanePrice = 0;
 
-async function getBuyPrice(item) {
+async function getBuyPrice(item){
 
     const response = await fetch(
         `https://api.opsucht.net/market/price/${item}`
     );
 
-    if (!response.ok) {
-        throw new Error(
-            `HTTP Fehler ${response.status}`
-        );
-    }
-
     const data = await response.json();
 
-    if (!data[item]) {
-        throw new Error(
-            `Kein Datensatz für ${item}`
-        );
-    }
-
-    const buyOrder =
-        data[item].find(
-            entry => entry.orderSide === "BUY"
-        );
-
-    if (!buyOrder) {
-        throw new Error(
-            `Keine BUY Order für ${item}`
-        );
-    }
+    const buyOrder = data[item].find(
+        entry => entry.orderSide === "BUY"
+    );
 
     return buyOrder.price;
 }
 
-async function loadPrices() {
+async function loadPrices(){
 
-    try {
+    try{
 
-        gunpowderPrice =
-            await getBuyPrice("GUNPOWDER");
+        gunpowderPrice = await getBuyPrice("GUNPOWDER");
+        sugarcanePrice = await getBuyPrice("SUGAR_CANE");
 
-        sugarcanePrice =
-            await getBuyPrice("SUGAR_CANE");
-
-        document.getElementById(
-            "gunpowderPrice"
-        ).innerText =
+        document.getElementById("gunpowderPrice").innerText =
             gunpowderPrice.toFixed(2) + "$";
 
-        document.getElementById(
-            "gunpowderPrice"
-        ).className = "success";
+        document.getElementById("gunpowderPrice").className =
+            "success";
 
-        document.getElementById(
-            "sugarcanePrice"
-        ).innerText =
+        document.getElementById("sugarcanePrice").innerText =
             sugarcanePrice.toFixed(2) + "$";
 
-        document.getElementById(
-            "sugarcanePrice"
-        ).className = "success";
+        document.getElementById("sugarcanePrice").className =
+            "success";
 
         calculate();
 
-    } catch (err) {
+    }catch(err){
 
-        console.error(err);
-
-        document.getElementById(
-            "output"
-        ).innerHTML = `
+        document.getElementById("output").innerHTML = `
             <h3>Fehler</h3>
             <p class="error">
                 API konnte nicht geladen werden.
             </p>
-            <pre>${err}</pre>
         `;
     }
 }
 
-function calculate() {
+function calculate(){
 
-    if (
-        gunpowderPrice <= 0 ||
-        sugarcanePrice <= 0
-    ) {
+    if(gunpowderPrice <= 0 || sugarcanePrice <= 0){
         return;
     }
 
     const wantedProfit =
         parseFloat(
-            document.getElementById(
-                "wantedProfit"
-            ).value
+            document.getElementById("wantedProfit").value
         ) || 0;
 
     const recipeCost =
@@ -210,9 +181,7 @@ function calculate() {
     const stackPrice =
         sellPricePerRocket * 64;
 
-    document.getElementById(
-        "output"
-    ).innerHTML = `
+    document.getElementById("output").innerHTML = `
 
         <h3>Berechnung</h3>
 
@@ -262,20 +231,13 @@ function calculate() {
 
         <hr>
 
-        <h3>Anzeigetafel</h3>
+        <h3>Signcode</h3>
 
-        <div style="
-            background:#111;
-            border:2px solid #555;
-            padding:15px;
-            width:220px;
-            color:white;
-            font-family:monospace;
-            line-height:1.8;
-        ">
+        <div class="signcode">
             <div>redtech236</div>
             <div>64</div>
             <div>B ${stackPrice.toFixed(2)}$</div>
+            <div>?</div>
         </div>
 
     `;
@@ -283,10 +245,7 @@ function calculate() {
 
 loadPrices();
 
-setInterval(
-    loadPrices,
-    30000
-);
+setInterval(loadPrices,30000);
 
 </script>
 
